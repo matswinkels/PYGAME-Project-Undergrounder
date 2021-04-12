@@ -1,18 +1,14 @@
 import pygame, sys, os
 from load_map import load_map
+from textures import TEXTURES
 
-texture_stone = pygame.image.load('img/stone.png')
-texture_dirt = pygame.image.load('img/dirt.png')
-texture_water = pygame.image.load('img/water.png')
-texture_character = pygame.image.load('img/character.png')
-texture_barrier = pygame.image.load('img/barrier.png')
 pygame.display.set_caption("Undergrounder")
-
-game_map = load_map('maps/map1')
-
-WINDOW_SIZE = (1000, 1000)
+game_map1 = load_map('maps/map1')
+entities_map1 = load_map('maps/entities1')
+upper_map1 = load_map('maps/uppermap1')
+WINDOW_SIZE = (1600, 900)
 TILE_SIZE = 16
-SURFACE_SIZE = (320, 320)
+SURFACE_SIZE = (320, 180)
 impassable_blocks = []
 
 
@@ -25,7 +21,7 @@ class Player(object):
             TILE_SIZE,
             TILE_SIZE
         )
-        self.speed = 2
+        self.speed = 1
 
     def move(self, x, y):
         if x != 0: self.move_on_axis(x, 0)
@@ -55,17 +51,18 @@ class App(object):
         self.running = True
         self.screen = None
         self.display = None
-        self.background_color = (200,200,200)
+        self.background_color = (137,182,238)
         self.clock = pygame.time.Clock()
         self.camera_x = 0
         self.camera_y = 0
+        self.fonts = None
     
     def app_init(self):
         '''initialize all PyGame modules, create main display and 
         try to use hardware acceleration'''
         pygame.init()
         self.screen = pygame.display.set_mode(
-            WINDOW_SIZE, 
+            WINDOW_SIZE,
             pygame.HWSURFACE | pygame.DOUBLEBUF
         )
         self.display = pygame.Surface(SURFACE_SIZE)
@@ -81,40 +78,88 @@ class App(object):
                 self.running = False
 
         key = pygame.key.get_pressed()
-        if key[pygame.K_LEFT]:
+        if key[pygame.K_LEFT] or key[pygame.K_a]:
             player.move(-player.speed, 0)
-        if key[pygame.K_RIGHT]:
+        if key[pygame.K_RIGHT] or key[pygame.K_d]:
             player.move(player.speed, 0)
-        if key[pygame.K_UP]:
+        if key[pygame.K_UP] or key[pygame.K_w]:
             player.move(0, -player.speed)
-        if key[pygame.K_DOWN]:
+        if key[pygame.K_DOWN] or key[pygame.K_s]:
             player.move(0, player.speed)
-      
+        if key[pygame.K_LSHIFT]:
+            player.speed = 2
+        else: player.speed = 1
+
+    def load_fonts(self):
+        """load all fonts"""
+        self.fonts = {
+            'font1': pygame.font.Font('fonts/rainyhearts.ttf', 16)
+        }
+        
+    def render_player_coords(self, player):
+        """show coordinates of a player character"""
+        self.display.blit(
+                self.fonts['font1'].render(str(int(player.rect.x + TILE_SIZE / 2)) + ' ' + str(int(player.rect.y + TILE_SIZE / 2)), True, (0, 0, 0)),
+                (0, 0)
+            )
+
+    def render_player_texture(self, player):
+        self.display.blit(
+            TEXTURES['character'], 
+            (player.rect.x - self.camera_x, player.rect.y - self.camera_y)
+        )
+
     def render_texture(self, texture_name, x, y):
-        """render single texture for app_render_map func"""
+        """render single texture for app_render_map and app_render_entitie func"""
         self.display.blit(texture_name, (
                         x * TILE_SIZE - self.camera_x,
                         y * TILE_SIZE - self.camera_y
                     ))
 
-    def app_render_map(self):
-        """render map""" 
+    def app_render_bottom_map(self, rmap):
+        """render bottom level of a map, rmap <- map to render"""
+         
         map_y = 0
-        for row in game_map:
+        for row in rmap:
             map_x = 0   
             for tile in row:
-                if tile == '0':   self.render_texture(texture_stone, map_x, map_y)
-                elif tile == '1': self.render_texture(texture_dirt, map_x, map_y)  
-                elif tile == '2': self.render_texture(texture_water, map_x, map_y)
-                elif tile == '3': self.render_texture(texture_barrier, map_x, map_y)
+                if tile == '1': self.render_texture(TEXTURES['dirt'], map_x, map_y)  
+                elif tile == '2': self.render_texture(TEXTURES['water'], map_x, map_y)
+                elif tile == '3': self.render_texture(TEXTURES['barrier'], map_x, map_y)
+                elif tile == '4': self.render_texture(TEXTURES['stone'], map_x, map_y)
                 
                 map_x += 1
             map_y += 1
 
-    def app_create_barriers(self):
-        """Create barriers across the map"""
+    def app_render_upper_map(self, umap):
+        """render upper level of a map, umap <- map to render"""
         map_y = 0
-        for row in game_map:
+        for row in umap:
+            map_x = 0   
+            for tile in row:
+                if tile == '1': self.render_texture(TEXTURES['dirt'], map_x, map_y - 1/4)  
+                elif tile == '2': self.render_texture(TEXTURES['water'], map_x, map_y - 1/4)
+                elif tile == '3': self.render_texture(TEXTURES['barrier'], map_x, map_y - 1/4)
+                elif tile == '4': self.render_texture(TEXTURES['stone'], map_x, map_y - 1/4)
+                
+                map_x += 1
+            map_y += 1
+
+    def app_render_entities(self, emap):
+        """render entities, emap <- entities map to render entities from"""
+        map_y = 0
+        for row in emap:
+            map_x = 0
+            for tile in row:
+                if tile == '5': self.render_texture(TEXTURES['berry'], map_x, map_y)
+
+                map_x +=1
+            map_y += 1
+
+    def app_create_barriers(self, bmap, umap):
+        """Create barriers across the map, bamp <- bottom lvl map, umap <- upper lvl map"""
+        map_y = 0
+        for row in bmap:
             map_x = 0   
             for tile in row:
                 if tile == '2': Barrier((map_x * TILE_SIZE, map_y * TILE_SIZE))
@@ -122,6 +167,16 @@ class App(object):
 
                 map_x += 1
             map_y += 1
+
+        map_y = 0
+        for row in umap:
+            map_x = 0   
+            for tile in row:
+                if tile != '0': Barrier((map_x * TILE_SIZE, map_y * TILE_SIZE))
+
+                map_x += 1
+            map_y += 1
+            
 
     def update_camera_position(self, player):
         '''update camera when moving with a character'''
@@ -139,16 +194,20 @@ class App(object):
             self.running = False
 
         player = Player()
-        self.app_create_barriers()
-
+        self.app_create_barriers(game_map1, upper_map1)
+        self.load_fonts()
         
         while (self.running):
             
             self.display.fill(self.background_color)
             self.update_camera_position(player)
             self.app_event(player)
-            self.app_render_map()
-            self.display.blit(texture_character, (player.rect.x - self.camera_x, player.rect.y - self.camera_y))
+            self.app_render_bottom_map(game_map1)
+            self.app_render_entities(entities_map1)
+            self.render_player_texture(player)
+            self.render_player_coords(player)
+            self.app_render_upper_map(upper_map1)
+            
 
             surf = pygame.transform.scale(
                 self.display, 
