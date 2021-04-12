@@ -1,5 +1,5 @@
 import pygame, sys, os
-from pygame.locals import *
+from load_map import load_map
 
 texture_stone = pygame.image.load('img/stone.png')
 texture_dirt = pygame.image.load('img/dirt.png')
@@ -8,31 +8,13 @@ texture_character = pygame.image.load('img/character.png')
 texture_barrier = pygame.image.load('img/barrier.png')
 pygame.display.set_caption("Undergrounder")
 
+game_map = load_map('maps/map1')
+
 WINDOW_SIZE = (1000, 1000)
 TILE_SIZE = 16
 SURFACE_SIZE = (320, 320)
 impassable_blocks = []
 
-game_map = [['3','3','3','3','3','3','3','3','3','3','3','3','3','3','3','3','3','3','3','3'],
-            ['3','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','3'],
-            ['3','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','3'],
-            ['3','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','3'],
-            ['3','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','3'],
-            ['3','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','3'],
-            ['3','1','1','2','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','3'],
-            ['3','1','2','2','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','3'],
-            ['3','1','2','2','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','3'],
-            ['3','1','1','2','2','2','1','1','1','1','1','1','1','2','2','1','1','1','1','3'],
-            ['3','1','1','2','2','2','1','1','1','1','1','1','1','1','2','2','1','1','1','3'],
-            ['3','1','1','1','2','1','1','1','1','1','1','1','1','1','1','1','1','1','1','3'],
-            ['3','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','3'],
-            ['3','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','3'],
-            ['3','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','3'],
-            ['3','1','1','1','1','1','1','1','1','1','2','2','1','1','1','1','1','1','1','3'],
-            ['3','1','1','1','1','1','1','1','1','1','2','2','1','1','1','1','1','1','1','3'],
-            ['3','1','1','1','1','1','1','1','1','2','1','1','1','1','1','1','1','1','1','3'],
-            ['3','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','1','3'],
-            ['3','3','3','3','3','3','3','3','3','3','3','3','3','3','3','3','3','3','3','3']]
 
 class Player(object):
     """Player class"""
@@ -75,6 +57,8 @@ class App(object):
         self.display = None
         self.background_color = (200,200,200)
         self.clock = pygame.time.Clock()
+        self.camera_x = 0
+        self.camera_y = 0
     
     def app_init(self):
         '''initialize all PyGame modules, create main display and 
@@ -109,8 +93,8 @@ class App(object):
     def render_texture(self, texture_name, x, y):
         """render single texture for app_render_map func"""
         self.display.blit(texture_name, (
-                        x * TILE_SIZE,
-                        y * TILE_SIZE
+                        x * TILE_SIZE - self.camera_x,
+                        y * TILE_SIZE - self.camera_y
                     ))
 
     def app_render_map(self):
@@ -137,7 +121,12 @@ class App(object):
                 if tile == '3': Barrier((map_x * TILE_SIZE, map_y * TILE_SIZE))
 
                 map_x += 1
-            map_y += 1  
+            map_y += 1
+
+    def update_camera_position(self, player):
+        '''update camera when moving with a character'''
+        self.camera_x += (player.rect.x - self.camera_x - int(SURFACE_SIZE[0] / 2))
+        self.camera_y += (player.rect.y - self.camera_y - int(SURFACE_SIZE[1] / 2))
     
     def app_cleanup(self):
         '''quits all PyGame modules'''
@@ -154,17 +143,19 @@ class App(object):
 
         
         while (self.running):
+            
             self.display.fill(self.background_color)
+            self.update_camera_position(player)
             self.app_event(player)
             self.app_render_map()
-            self.display.blit(texture_character, (player.rect.x, player.rect.y))
+            self.display.blit(texture_character, (player.rect.x - self.camera_x, player.rect.y - self.camera_y))
 
             surf = pygame.transform.scale(
                 self.display, 
                 WINDOW_SIZE
             )
             self.screen.blit(surf, (0,0))
-            pygame.display.update()
+            pygame.display.flip()
             self.clock.tick(60)
 
 
