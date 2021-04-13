@@ -3,14 +3,15 @@ from load_map import load_map
 from textures import TEXTURES
 
 pygame.display.set_caption("Undergrounder")
-game_map1 = load_map('maps/map1')
-entities_map1 = load_map('maps/entities1')
-upper_map1 = load_map('maps/uppermap1')
-#map_tmp1 - load_map('maps/map_tmp1')
-WINDOW_SIZE = (1600, 900)
-TILE_SIZE = 16
-SURFACE_SIZE = (320, 180)
+bmap1 = load_map('maps/map1')
+emap1 = load_map('maps/entities1')
+umap1 = load_map('maps/uppermap1')
+WINDOW_SIZE = (1280, 720)
+TILE_SIZE = 32
+BOTTOMTILE_SIZE = 12
+SURFACE_SIZE = (512, 288)
 impassable_blocks = []
+entities = []
 
 
 class Player(object):
@@ -22,7 +23,7 @@ class Player(object):
             TILE_SIZE,
             TILE_SIZE
         )
-        self.INITIAL_SPEED = 1
+        self.INITIAL_SPEED = 2
         self.speed = self.INITIAL_SPEED
         self.left = False
         self.right = False
@@ -41,6 +42,14 @@ class Player(object):
                 if x < 0: self.rect.left = barrier.rect.right
                 if y > 0: self.rect.bottom = barrier.rect.top
                 if y < 0: self.rect.top = barrier.rect.bottom
+
+class Entity(object):
+    """Entity object: bushes, chests etc."""
+    def __init__(self, pos, id):
+        entities.append(self)
+        self.rect = pygame.Rect(pos[0], pos[1], TILE_SIZE, TILE_SIZE)
+        self.id = id
+
 
 class Barrier(object):
     """Impassable object class"""
@@ -84,12 +93,12 @@ class App(object):
         key = pygame.key.get_pressed()
         if key[pygame.K_LEFT] or key[pygame.K_a]:
             player.move(-player.speed, 0)
-            player.left = True
+            #player.left = True
         else:
             player.left = False
         if key[pygame.K_RIGHT] or key[pygame.K_d]:
             player.move(player.speed, 0)
-            player.right = True
+            #player.right = True
         else:
             player.right = False
         if key[pygame.K_UP] or key[pygame.K_w]:
@@ -101,7 +110,6 @@ class App(object):
         else: 
             player.speed = player.INITIAL_SPEED
             
-
     def load_fonts(self):
         """load all fonts"""
         self.fonts = {
@@ -118,7 +126,7 @@ class App(object):
     def render_fps_value(self):
         self.display.blit(
             self.fonts['font1'].render(str(int(self.clock.get_fps())), True, (255, 0, 0)),
-            (305,0)
+            (495,0)
         )
 
     def render_player_texture(self, player):
@@ -145,48 +153,52 @@ class App(object):
                         y * TILE_SIZE - self.camera_y
                     ))
 
-    def app_render_bottom_map(self, rmap):
+    def render_bottom_map(self, rmap):
         """render bottom level of a map, rmap <- map to render"""
-         
         map_y = 0
         for row in rmap:
             map_x = 0   
             for tile in row:
                 if tile == '1': self.render_texture(TEXTURES['dirt'], map_x, map_y)  
                 elif tile == '2': self.render_texture(TEXTURES['water'], map_x, map_y)
-                elif tile == '3': self.render_texture(TEXTURES['barrier'], map_x, map_y)
+                elif tile == '3': self.render_texture(TEXTURES['obsidian'], map_x, map_y)
                 elif tile == '4': self.render_texture(TEXTURES['stone'], map_x, map_y)
                 
                 map_x += 1
             map_y += 1
 
-    def app_render_upper_map(self, umap):
+    def render_upper_map(self, umap):
         """render upper level of a map, umap <- map to render"""
         map_y = 0
         for row in umap:
             map_x = 0   
             for tile in row:
-                if tile == '1':     self.render_texture(TEXTURES['dirt'], map_x, map_y - 0.375)  
-                elif tile == '2':   self.render_texture(TEXTURES['water'], map_x, map_y - 0.375)
-                elif tile == '3':   self.render_texture(TEXTURES['barrier'], map_x, map_y - 0.375)
-                elif tile == '4':   self.render_texture(TEXTURES['stone'], map_x, map_y - 0.375)
+                if tile == '1':     self.render_texture(TEXTURES['dirt'], map_x, map_y - BOTTOMTILE_SIZE/TILE_SIZE)  
+                elif tile == '2':   self.render_texture(TEXTURES['water'], map_x, map_y - BOTTOMTILE_SIZE/TILE_SIZE)
+                elif tile == '3':   self.render_texture(TEXTURES['obsidian'], map_x, map_y - BOTTOMTILE_SIZE/TILE_SIZE)
+                elif tile == '4':   self.render_texture(TEXTURES['stone'], map_x, map_y - BOTTOMTILE_SIZE/TILE_SIZE)
                 
                 map_x += 1
             map_y += 1
 
-    def app_render_entities(self, emap):
-        """render entities, emap <- entities map to render entities from"""
-        map_y = 0
-        for row in emap:
-            map_x = 0
-            for tile in row:
-                if tile == '5':     self.render_texture(TEXTURES['deer'], map_x, map_y)
-                elif tile == '6':   self.render_texture(TEXTURES['bush'], map_x, map_y) 
+    def render_entities(self):
+        """render entities and player"""
+        for entity in entities:
+            if entity.id == '5': self.render_texture(
+                TEXTURES['deer'], entity.rect.x / TILE_SIZE, entity.rect.y / TILE_SIZE)
+            elif entity.id == '6': self.render_texture(
+                TEXTURES['bush'], entity.rect.x / TILE_SIZE, entity.rect.y / TILE_SIZE)
 
-                map_x +=1
-            map_y += 1
+    def render_player_entity_collision(self, player):
+        """render entities and player when occurs any collision between them"""
+        if player.rect.bottom > entities[player.rect.collidelist(entities)].rect.bottom:
+            self.render_entities()
+            self.render_player_texture(player)
+        else:
+            self.render_player_texture(player)
+            self.render_entities()
 
-    def app_create_barriers(self, bmap, umap):
+    def create_barriers(self, bmap, umap):
         """Create barriers across the map, bamp <- bottom lvl map, umap <- upper lvl map"""
         map_y = 0
         for row in bmap:
@@ -206,13 +218,25 @@ class App(object):
 
                 map_x += 1
             map_y += 1
+
+    def create_entities(self, emap):
+        '''create entities across the map, emap <- map of entities to create entities from'''
+        map_y = 0
+        for row in emap:
+            map_x = 0   
+            for tile in row:
+                if tile == '5': Entity((map_x * TILE_SIZE, map_y * TILE_SIZE), '5')
+                if tile == '6': Entity((map_x * TILE_SIZE, map_y * TILE_SIZE), '6')
+
+                map_x += 1
+            map_y += 1
             
     def update_camera_position(self, player):
-        '''update camera when moving with a character'''
+        '''update camera when a character is moving'''
         self.camera_x += (player.rect.center[0] - self.camera_x - int(SURFACE_SIZE[0] / 2))
         self.camera_y += (player.rect.center[1] - self.camera_y - int(SURFACE_SIZE[1] / 2))
     
-    def app_cleanup(self):
+    def cleanup(self):
         '''quits all PyGame modules'''
         pygame.quit()
         sys.exit()
@@ -223,18 +247,25 @@ class App(object):
             self.running = False
 
         player = Player()
-        self.app_create_barriers(game_map1, upper_map1)
+        self.create_barriers(bmap1, umap1)
+        self.create_entities(emap1)
         self.load_fonts()
         
         while (self.running):
-            
             self.display.fill(self.background_color)
             self.update_camera_position(player)
             self.app_event(player)
-            self.app_render_bottom_map(game_map1)
-            self.app_render_entities(entities_map1)
-            self.render_player_texture(player)
-            self.app_render_upper_map(upper_map1)
+            self.render_bottom_map(bmap1)
+
+            if not player.rect.collidelistall(entities):
+                '''player do not collide with any entities'''
+                self.render_player_texture(player)
+                self.render_entities()
+            else:
+                '''player collides with at least one of entities'''
+                self.render_player_entity_collision(player)
+
+            self.render_upper_map(umap1)
             self.render_player_coords(player)
             self.render_fps_value()
 
@@ -246,7 +277,7 @@ class App(object):
             pygame.display.flip()
             self.clock.tick(60)
 
-        self.app_cleanup()
+        self.cleanup()
 
 
 if __name__ == "__main__":
