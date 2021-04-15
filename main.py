@@ -34,6 +34,7 @@ class Chunk(object):
         self.bottom_blocks = []
         self.upper_blocks = []
         self.entities = []
+        self.area = pygame.Rect(self.start_x, self.start_y, TILE_SIZE * 8, TILE_SIZE * 8)
         
     def create_bottom_blocks(self):
         """Create objects of Bottom class and associates them to particular chunk"""
@@ -61,7 +62,18 @@ class Chunk(object):
                 elif tile == '4':   Barrier((self.start_x + map_x * TILE_SIZE, self.start_y + map_y * TILE_SIZE), '4', self)
 
                 map_x += 1
-            map_y += 1 
+            map_y += 1
+
+    def create_entities_block(self):
+        """Create objects of Entity class and associates them to particular chunk"""
+        map_y = 0
+        for row in self.emap:
+            map_x = 0
+            for tile in row:
+                if tile == '6':     Entity((self.start_x + map_x * TILE_SIZE, self.start_y + map_y * TILE_SIZE), '6', self)
+
+                map_x += 1
+            map_y += 1
 
 class Bottom(object):
     def __init__(self, pos, id, Chunk, imp):
@@ -110,8 +122,8 @@ class Player(object):
     
 class Entity(object):
     """Entity object: bushes, chests etc."""
-    def __init__(self, pos, id):
-        entities.append(self)
+    def __init__(self, pos, id, Chunk):
+        Chunk.entities.append(self)
         self.rect = pygame.Rect(pos[0], pos[1], TILE_SIZE, TILE_SIZE)
         self.id = id
 
@@ -250,24 +262,13 @@ class App(object):
                 elif upper.id == '4':   self.render_texture(TEXTURES['stone'], upper.rect.x, upper.rect.y - BOTTOMTILE_SIZE)
                 
     def render_entities(self):
-        """render entities and player"""
-        for entity in entities:
-            if entity.id == '5': self.render_texture(
-                TEXTURES['deer'], entity.rect.x / TILE_SIZE, entity.rect.y / TILE_SIZE)
-            elif entity.id == '6': self.render_texture(
-                TEXTURES['bush'], entity.rect.x / TILE_SIZE, entity.rect.y / TILE_SIZE)
-
-    def render_player_entity_collision(self, player):
-        """render entities and player when occurs any collision between them"""
-        if player.rect.bottom > entities[player.rect.collidelist(entities)].rect.bottom - 2:
-            self.render_entities()
-            self.render_player_texture(player)
-        else:
-            self.render_player_texture(player)
-            self.render_entities()
+        """render entities"""
+        for chunk in chunks:
+            for entity in chunk.entities:
+                if entity.id == '6':    self.render_texture(TEXTURES['bush'], entity.rect.x, entity.rect.y)
 
     def update_camera_position(self, player):
-        '''update camera when a character is moving'''
+        '''update camera when player is moving'''
         self.camera_x += (player.rect.center[0] - self.camera_x - int(SURFACE_SIZE[0] / 2))
         self.camera_y += (player.rect.center[1] - self.camera_y - int(SURFACE_SIZE[1] / 2))
     
@@ -276,44 +277,68 @@ class App(object):
         pygame.quit()
         sys.exit()
 
+    def check_player_entity_collision(self, player):
+        """Checks if player collides with any of the entities and return list of entities if it's > 0, else returns False"""
+        colliding_entities = [] # container for colliding entities
+        for chunk in chunks:
+            for entity in chunk.entities:
+                if player.rect.colliderect(entity.rect):
+                    colliding_entities.append(entity)
+        if len(colliding_entities) != 0:
+            return colliding_entities
+        else:
+            return False
+
+    def render_player_entity_collision(self, entities, player):
+        """render entities and player when any collision between them occurs"""
+        for entity in entities:
+            if player.rect.bottom > entity.rect.bottom - 2:
+                self.render_entities()
+                self.render_player_texture(player)
+            else:
+                self.render_player_texture(player)
+                self.render_entities()
+
+
     def app_execute(self):
         '''main execute function'''
         if self.app_init() == False:
             self.running = False
 
-        player = Player()                                               # Create Player object
-        self.load_fonts()                                               # Load fonts
-        self.create_chunk_map(cmap1)                                    # Create Chunk objects from cmap
+        player = Player()                                                   # Create Player object
+        self.load_fonts()                                                   # Load fonts
+        self.create_chunk_map(cmap1)                                        # Create Chunk objects from cmap
         for chunk in chunks:
-            chunk.create_bottom_blocks()                                # Create Bottom objects chunk after chunk
-            chunk.create_upper_blocks()                                 # Create Barrier objects chunk after chunk
-        for chunk in chunks:                                            # Loop for testing
+            chunk.create_bottom_blocks()                                    # Create Bottom objects chunk after chunk
+            chunk.create_upper_blocks()                                     # Create Barrier objects chunk after chunk
+            chunk.create_entities_block()                                   # Create Entity objects chunk after chunk  
+        for chunk in chunks:                                                # Loop for testing
             pass
         
+        
         while (self.running):
-            self.display.fill(self.background_color)                    # Fill display with background color
-            self.update_camera_position(player)                         # Update position of camera in relation to the player
-            self.app_event(player)                                      # Handles events
-            self.render_bottom_map()                                    # Render objects of bottom layer
+            self.display.fill(self.background_color)                        # Fill display with background color
+            self.update_camera_position(player)                             # Update position of camera in relation to the player
+            self.app_event(player)                                          # Handles events
+            self.render_bottom_map()                                        # Render objects of bottom layer
             
-            if not player.rect.collidelistall(entities):
-                #player do not collide with any entities
-                self.render_player_texture(player)
-                self.render_entities()
-            else:
-                #player collides with at least one of entities
-                self.render_player_entity_collision(player)
+            if self.check_player_entity_collision(player) is False:         # If player does not collide with any entities
+                self.render_player_texture(player)                          # Render player
+                self.render_entities()                                      # Render entities
+            else:   
+                self.render_player_entity_collision(                        # Render player/entity in relation to each other
+                    self.check_player_entity_collision(player), 
+                    player)                                                 
             
-            self.render_upper_map()                                     # Render objects of upper layer
-            self.render_player_coords(player)                           # Render player's coordinates
-            self.render_fps_value()                                     # Render current FPS value
-
-            surf = pygame.transform.scale(                              # Scale display to window size
+            self.render_upper_map()                                         # Render objects of upper layer
+            self.render_player_coords(player)                               # Render player's coordinates
+            self.render_fps_value()                                         # Render current FPS value
+            surf = pygame.transform.scale(                                  # Scale display to window size
                 self.display, 
                 WINDOW_SIZE
             )
             self.screen.blit(surf, (0,0))                   
-            pygame.display.flip()                                       # Refresh display
+            pygame.display.flip()                                           # Refresh display
             self.clock.tick(60)
 
         self.cleanup()
