@@ -173,8 +173,12 @@ class App(object):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
-            if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                self.running = False
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    self.running = False
+                if event.key == pygame.K_m:
+                    self.running = False
+                    self.main_menu()
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
                     print(self.mouse_x, self.mouse_y)
@@ -290,10 +294,47 @@ class App(object):
                 self.render_player_texture(player)
                 self.render_entities(player)
 
+    def main_menu(self):
+        """Main menu loop function"""
+        self.app_init()
+        btn_start = pygame.Rect(97, 65, 64, 16)
+        btn_quit = pygame.Rect(97, 97, 64, 16)
+
+        main = True
+        while main:
+            for event in pygame.event.get():
+                if event.type is pygame.QUIT:
+                    self.cleanup()
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        self.cleanup()
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    mouse_pos = event.pos
+                    if btn_start.collidepoint((mouse_pos[0]//5, mouse_pos[1]//5)):
+                        main = False
+                        self.app_execute()
+                    elif btn_quit.collidepoint((mouse_pos[0]//5, mouse_pos[1]//5)):
+                        main = False
+                        self.cleanup()
+
+            mouse_pos = pygame.mouse.get_pos()
+            if btn_start.collidepoint((mouse_pos[0]//5, mouse_pos[1]//5)):
+                self.display.blit(TEXTURES['main_menu_start'], (0,0))
+            elif btn_quit.collidepoint((mouse_pos[0]//5, mouse_pos[1]//5)):
+                self.display.blit(TEXTURES['main_menu_quit'], (0,0))
+            else: 
+                self.display.blit(TEXTURES['main_menu'], (0,0))
+            
+            surf = pygame.transform.scale(                                  
+                self.display, 
+                WINDOW_SIZE
+            )
+            self.screen.blit(surf, (0,0))                   
+            pygame.display.flip()             
+
     def app_execute(self):
         '''main execute function'''
-        if self.app_init() == False:
-            self.running = False
+        self.running = True
 
         player = Player()                                                   # Create Player object
         self.load_fonts()                                                   # Load fonts
@@ -309,19 +350,21 @@ class App(object):
             self.display.fill(self.background_color)                        # Fill display with background color
             self.update_camera_position(player)                             # Update position of camera in relation to the player
             self.app_event(player)                                          # Handles events
-            self.render_bottom_map(player)                                        # Render objects of bottom layer
+            self.render_bottom_map(player)                                  # Render objects of bottom layer
             
             if self.check_player_entity_collision(player) is False:         # If player does not collide with any entities
                 self.render_player_texture(player)                          # Render player
-                self.render_entities(player)                                      # Render entities
+                self.render_entities(player)                                # Render entities
             else:   
                 self.render_player_entity_collision(                        # Render player/entity in relation to each other
                     self.check_player_entity_collision(player), 
                     player)                                                 
             
-            self.render_upper_map(player)                                         # Render objects of upper layer
+            self.render_upper_map(player)                                   # Render objects of upper layer
             self.render_player_coords(player)                               # Render player's coordinates
             self.render_fps_value()                                         # Render current FPS value
+            
+            
             surf = pygame.transform.scale(                                  # Scale display to window size
                 self.display, 
                 WINDOW_SIZE
@@ -335,6 +378,5 @@ class App(object):
 
 if __name__ == "__main__":
     App = App()
-
-    App.app_execute()
+    App.main_menu()
 
