@@ -1,6 +1,7 @@
 import pygame, sys, os
 from load_map import load_map
 from textures import TEXTURES
+from distance import distance
 from load_chunk_patterns import CHUNKS
 from load_chunk_patterns import cmap1
 
@@ -9,6 +10,7 @@ WINDOW_SIZE = (1280, 720)
 TILE_SIZE = 16
 BOTTOMTILE_SIZE = 6
 SURFACE_SIZE = (256, 144)
+PROPORTION = 5 # Proportion between window size and surface size, useful for scaling stuff         
 chunks = []
 
 class Chunk(object):
@@ -62,7 +64,7 @@ class Chunk(object):
         for row in self.emap:
             map_x = 0
             for tile in row:
-                if tile == '6':     Entity((self.start_x + map_x * TILE_SIZE, self.start_y + map_y * TILE_SIZE), '6', self)
+                if tile == '6':     Bush((self.start_x + map_x * TILE_SIZE, self.start_y + map_y * TILE_SIZE), '6', self)
 
                 map_x += 1
             map_y += 1
@@ -111,7 +113,22 @@ class Player(object):
                     if x < 0: self.rect.left = barrier.rect.right
                     if y > 0: self.rect.bottom = barrier.rect.top
                     if y < 0: self.rect.top = barrier.rect.bottom
-    
+
+class Bush(object):
+    def __init__(self, pos, id, Chunk):
+        Chunk.entities.append(self)
+        self.rect = pygame.Rect(pos[0], pos[1], TILE_SIZE, TILE_SIZE)
+        self.id = id
+        self.has_berries = True
+        self.hp = 10
+
+    def pushed(self):
+        pass
+
+    def collect(self, player):
+        if self.has_berries and distance(player.rect.center, self.rect.center) <= 1.5 * TILE_SIZE:
+            self.has_berries = False
+
 class Entity(object):
     """Entity object: bushes, chests etc."""
     def __init__(self, pos, id, Chunk):
@@ -167,8 +184,8 @@ class App(object):
     
     def app_event(self, player):
         '''checks if event happened'''
-        self.mouse_x = pygame.mouse.get_pos()[0] - self.camera_x - int(SURFACE_SIZE[0] / 2)
-        self.mouse_y = pygame.mouse.get_pos()[1] + self.camera_y - int(SURFACE_SIZE[1] / 2)
+        self.mouse_x = (pygame.mouse.get_pos()[0] // PROPORTION) + self.camera_x
+        self.mouse_y = (pygame.mouse.get_pos()[1] // PROPORTION) + self.camera_y
         
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -181,8 +198,13 @@ class App(object):
                     self.main_menu()
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
-                    print(self.mouse_x, self.mouse_y)
+                    pass
+                elif event.button == 2:
+                    pass
+                elif event.button == 3:
+                    self.handle_interactions(player, 3)
 
+        # MOVING A CHARACTER
         key = pygame.key.get_pressed()
         if key[pygame.K_LEFT] or key[pygame.K_a]:
             player.move(-player.speed, 0)
@@ -260,7 +282,27 @@ class App(object):
         for chunk in chunks:
             if abs(chunk.area.centerx - player.rect.centerx) < SURFACE_SIZE[0] and abs(chunk.area.centerx - player.rect.centerx) < SURFACE_SIZE[1]:
                 for entity in chunk.entities:
-                    if entity.id == '6':    self.render_texture(TEXTURES['bush'], entity.rect.x, entity.rect.y)
+                    if entity.id == '6':    
+                        if entity.has_berries:
+                            if entity.rect.collidepoint(self.mouse_x, self.mouse_y) and distance(player.rect.center, entity.rect.center) <= 1.5 * TILE_SIZE:
+                                self.render_texture(TEXTURES['bush_berries_h'], entity.rect.x, entity.rect.y)
+                            else:
+                                self.render_texture(TEXTURES['bush_berries'], entity.rect.x, entity.rect.y)
+                        else:
+                            if entity.rect.collidepoint(self.mouse_x, self.mouse_y) and distance(player.rect.center, entity.rect.center) <= 1.5 * TILE_SIZE:
+                                self.render_texture(TEXTURES['bush_noberries_h'], entity.rect.x, entity.rect.y)
+                            else:
+                                self.render_texture(TEXTURES['bush_noberries'], entity.rect.x, entity.rect.y)
+
+    def handle_interactions(self, player, event):
+        '''back-end handle of player's interactions with entities, e.g. after left or right click'''
+        # event(1 - left click, 3 - right click)
+        for chunk in chunks:
+            if chunk.area.collidepoint(self.mouse_x, self.mouse_y):
+                for entity in chunk.entities:
+                    if entity.id == '6':                            # Bush object
+                        if event == 1: pass
+                        elif event == 3: entity.collect(player)
 
     def update_camera_position(self, player):
         '''update camera when player is moving'''
@@ -310,17 +352,17 @@ class App(object):
                         self.cleanup()
                 if event.type == pygame.MOUSEBUTTONDOWN:
                     mouse_pos = event.pos
-                    if btn_start.collidepoint((mouse_pos[0]//5, mouse_pos[1]//5)):
+                    if btn_start.collidepoint((mouse_pos[0]//PROPORTION, mouse_pos[1]//PROPORTION)):
                         main = False
                         self.app_execute()
-                    elif btn_quit.collidepoint((mouse_pos[0]//5, mouse_pos[1]//5)):
+                    elif btn_quit.collidepoint((mouse_pos[0]//PROPORTION, mouse_pos[1]//PROPORTION)):
                         main = False
                         self.cleanup()
 
             mouse_pos = pygame.mouse.get_pos()
-            if btn_start.collidepoint((mouse_pos[0]//5, mouse_pos[1]//5)):
+            if btn_start.collidepoint((mouse_pos[0]//PROPORTION, mouse_pos[1]//PROPORTION)):
                 self.display.blit(TEXTURES['main_menu_start'], (0,0))
-            elif btn_quit.collidepoint((mouse_pos[0]//5, mouse_pos[1]//5)):
+            elif btn_quit.collidepoint((mouse_pos[0]//PROPORTION, mouse_pos[1]//PROPORTION)):
                 self.display.blit(TEXTURES['main_menu_quit'], (0,0))
             else: 
                 self.display.blit(TEXTURES['main_menu'], (0,0))

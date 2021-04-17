@@ -4,7 +4,6 @@ import numpy
 CHUNKS = []
 cmap1 = load_map('maps/cmap1')
 n_chunks = max(numpy.ravel(cmap1))
-print(n_chunks)
 
 for n in range(int(n_chunks) + 1):
     CHUNKS.append(

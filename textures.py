@@ -8,7 +8,10 @@ TEXTURES = {                                                                # ID
     'obsidian':             pygame.image.load('img/obsidian16.png'),        # 3
     'stone':                pygame.image.load('img/stone16.png'),           # 4
     
-    'bush':                 pygame.image.load('img/bush.png'),               # 6
+    'bush_berries':         pygame.image.load('img/bush16berries.png'),     # 6
+    'bush_noberries':       pygame.image.load('img/bush16noberries.png'),
+    'bush_berries_h':       pygame.image.load('img/bush16noberries_h.png'),
+    'bush_noberries_h':     pygame.image.load('img/bush16noberries_h.png'),
 
 
 
